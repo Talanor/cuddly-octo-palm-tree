@@ -65,6 +65,31 @@ Cache server capacity: %d""" % (
     )
 )
 
+def lolbigsort(videos, endpoints, caches, requests, ncachecap):
+    result = {}
+
+    for endpoint_id, endpoint in endpoints.items():
+        total = 0
+        for cache_id, cache in endpoint.caches.items():
+            total += cache.endpoints[endpoint_id]["latency"]
+
+        total = float(total) / float(len(endpoint.caches.values()))
+
+        for cache_id, cache in endpoint.caches.items():
+            if cache_id not in result.keys():
+                result[cache_id] = {}
+
+            temptotal = total - float(
+                cache.endpoints[endpoint.identifier]["latency"]
+            )
+
+            for request_id, request in endpoint.requests.items():
+                if request.video.identifier not in result[cache_id].keys():
+                    result[cache_id][request.video.identifier] = 0.0
+                result[cache_id][request.video.identifier] += temptotal * request.amount
+    return result
+
+
 def main(args):
     with open(args[1], 'rb') as f:
         lines = f.readlines()
@@ -76,7 +101,9 @@ def main(args):
     videos = {}
     i = 0
     for size in lines[1].split():
-        videos[i] = Video(i, int(size))
+        size = int(size)
+        if size <= ncachecap:
+            videos[i] = Video(i, size)
         i += 1
 
     print("\nRetrieval")
@@ -86,9 +113,11 @@ def main(args):
     caches = {}
     i = 0
     index = 2
+    caches[-1] = Cache(-1)
     while i < nendpoints:
         latency_datacenter, ncaches = map(int, lines[index].split())
         endpoint = Endpoint(i, latency_datacenter, ncaches)
+        endpoint.addCache(caches[-1])
         endpoints[i] = endpoint
         index += 1
         j = 0
@@ -97,6 +126,7 @@ def main(args):
             if identifier not in caches.keys():
                 caches[identifier] = Cache(identifier)
             caches[identifier].addEndpoint(endpoint, latency_endpoint)
+            caches[-1].addEndpoint(endpoint, latency_datacenter)
             index += 1
             j += 1
         i += 1
@@ -108,14 +138,21 @@ def main(args):
     i = 0
     while i < nrequests:
         video_id, endpoint_id, amount = map(int, lines[index].split())
-        requests[i] = Request(
-            i, videos[video_id], endpoints[endpoint_id], amount
-        )
+        try:
+            requests[i] = Request(
+                i, videos[video_id], endpoints[endpoint_id], amount
+            )
+        except IndexError:
+            # Can only be triggered if video_id is referring a video which size
+            # is too big
+            pass
         index += 1
         i += 1
 
     print("Number of requests: %d" % len(requests))
 
+    result = lolbigsort(videos, endpoints, caches, requests, ncachecap)
+    print(result)
 
 if __name__ == "__main__":
     main(sys.argv)
