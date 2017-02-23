@@ -7,6 +7,7 @@ class Video(object):
         self.identifier = identifier
         self.size = size
         self.requests = {}
+        self.best_score = -1.0
 
     def addRequest(self, request):
         self.requests[request.identifier] = request
@@ -65,13 +66,17 @@ Cache server capacity: %d""" % (
     )
 )
 
+
 def lolbigsort(videos, endpoints, caches, requests, ncachecap):
     result = {}
 
     for endpoint_id, endpoint in endpoints.items():
-        total = 0
+        total = 0.0
         for cache_id, cache in endpoint.caches.items():
-            total += cache.endpoints[endpoint_id]["latency"]
+            try:
+                total += cache.endpoints[endpoint_id]["latency"]
+            except:
+                print(cache.endpoints.keys())
 
         total = float(total) / float(len(endpoint.caches.values()))
 
@@ -87,7 +92,56 @@ def lolbigsort(videos, endpoints, caches, requests, ncachecap):
                 if request.video.identifier not in result[cache_id].keys():
                     result[cache_id][request.video.identifier] = 0.0
                 result[cache_id][request.video.identifier] += temptotal * request.amount
+                videos[request.video.identifier].best_score = temptotal * request.amount
     return result
+
+
+# def lolbigsort2(weird_stuff, videos, caches):
+#     for video in sorted(videos.values(), key=lambda item: item.best_score, reverse=True):
+#         cache_max = -1.0
+#         best_cache_id = -1
+#
+#         for cache_id, weird_stuff2 in weird_stuff.items():
+#             try:
+#                 if weird_stuff2[video.identifier] > cache_max:
+#                     cache_max = weird_stuff2[video.identifier]
+#                     best_cache_id = cache_id
+#             except IndexError:
+#                 # didn't find video id
+#                 pass
+#
+#         best_cache = caches[best_cache_id]
+#         best_cache_endpoints = map(
+#             lambda item: item["obj"], best_cache.endpoints
+#         )
+#
+#         for cache_id, cache in caches.items():
+#             if cache_id == best_cache_id:
+#                 continue
+#             weird_stuff[cache_id][video.identifier] = 0.0
+#             endpoints_exclusives = set(map(
+#                 lambda item: item["obj"], cache.endpoints
+#             )) - set(best_cache_endpoints)
+#
+#             for endpoint in endpoints_exclusives:
+#                 if len(filter(lambda item: item.video.identifier == video.identifier, endpoint.requests)) > 0:
+#                     total = 0.0
+#                     for cache_id, cache in endpoint.caches.items():
+#                         total += cache.endpoints[endpoint_id]["latency"]
+#
+#                     total = float(total) / float(len(endpoint.caches.values()))
+#
+#                     for cache_id2, cache2 in endpoint.caches.items():
+#                         temptotal = total - float(
+#                             cache2.endpoints[endpoint.identifier]["latency"]
+#                         )
+#
+#
+#
+#                         for request_id, request in endpoint.requests.items():
+#                             weird_stuff[cache_id][request.video.identifier] += temptotal * request.amount
+#
+#
 
 
 def main(args):
@@ -117,7 +171,7 @@ def main(args):
     while i < nendpoints:
         latency_datacenter, ncaches = map(int, lines[index].split())
         endpoint = Endpoint(i, latency_datacenter, ncaches)
-        endpoint.addCache(caches[-1])
+        caches[-1].addEndpoint(endpoint, latency_datacenter)
         endpoints[i] = endpoint
         index += 1
         j = 0
