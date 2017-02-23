@@ -96,53 +96,53 @@ def lolbigsort(videos, endpoints, caches, requests, ncachecap):
     return result
 
 
-# def lolbigsort2(weird_stuff, videos, caches):
-#     for video in sorted(videos.values(), key=lambda item: item.best_score, reverse=True):
-#         cache_max = -1.0
-#         best_cache_id = -1
-#
-#         for cache_id, weird_stuff2 in weird_stuff.items():
-#             try:
-#                 if weird_stuff2[video.identifier] > cache_max:
-#                     cache_max = weird_stuff2[video.identifier]
-#                     best_cache_id = cache_id
-#             except IndexError:
-#                 # didn't find video id
-#                 pass
-#
-#         best_cache = caches[best_cache_id]
-#         best_cache_endpoints = map(
-#             lambda item: item["obj"], best_cache.endpoints
-#         )
-#
-#         for cache_id, cache in caches.items():
-#             if cache_id == best_cache_id:
-#                 continue
-#             weird_stuff[cache_id][video.identifier] = 0.0
-#             endpoints_exclusives = set(map(
-#                 lambda item: item["obj"], cache.endpoints
-#             )) - set(best_cache_endpoints)
-#
-#             for endpoint in endpoints_exclusives:
-#                 if len(filter(lambda item: item.video.identifier == video.identifier, endpoint.requests)) > 0:
-#                     total = 0.0
-#                     for cache_id, cache in endpoint.caches.items():
-#                         total += cache.endpoints[endpoint_id]["latency"]
-#
-#                     total = float(total) / float(len(endpoint.caches.values()))
-#
-#                     for cache_id2, cache2 in endpoint.caches.items():
-#                         temptotal = total - float(
-#                             cache2.endpoints[endpoint.identifier]["latency"]
-#                         )
-#
-#
-#
-#                         for request_id, request in endpoint.requests.items():
-#                             weird_stuff[cache_id][request.video.identifier] += temptotal * request.amount
-#
-#
+def lolbigsort2(weird_stuff, videos, caches):
+    for video in sorted(videos.values(), key=lambda item: item.best_score, reverse=True):
+        cache_max = -1.0
+        best_cache_id = -1
 
+        for cache_id, weird_stuff2 in weird_stuff.items():
+            try:
+                if weird_stuff2[video.identifier] > cache_max:
+                    cache_max = weird_stuff2[video.identifier]
+                    best_cache_id = cache_id
+            except KeyError:
+                # didn't find video id
+                pass
+
+        best_cache = caches[best_cache_id]
+        best_cache_endpoints = map(
+            lambda item: item["obj"], best_cache.endpoints.values()
+        )
+
+        for endpoint in best_cache_endpoints:
+            endpoint.requests = dict((k, v) for k, v in endpoint.requests.items() if v.video.identifier != video.identifier)
+
+        for cache_id, cache in caches.items():
+            if cache_id == best_cache_id:
+                continue
+            weird_stuff[cache_id][video.identifier] = 0.0
+            endpoints_exclusives = set(map(
+                lambda item: item["obj"], cache.endpoints.values()
+            )) - set(best_cache_endpoints)
+
+            for endpoint in endpoints_exclusives:
+                if len(list(filter(lambda item: item.video.identifier == video.identifier, endpoint.requests.values()))) > 0:
+                    total = 0.0
+                    for cache_id2, cache2 in endpoint.caches.items():
+                        total += cache2.endpoints[endpoint.identifier]["latency"]
+
+                    total = float(total) / float(len(endpoint.caches.values()))
+
+                    temptotal = total - float(
+                        cache.endpoints[endpoint.identifier]["latency"]
+                    )
+
+                    for request_id, request in endpoint.requests.items():
+                        if request.video.identifier == video.identifier:
+                            weird_stuff[cache_id][request.video.identifier] += temptotal * request.amount
+
+    return weird_stuff
 
 def main(args):
     with open(args[1], 'rb') as f:
@@ -206,6 +206,7 @@ def main(args):
     print("Number of requests: %d" % len(requests))
 
     result = lolbigsort(videos, endpoints, caches, requests, ncachecap)
+    result = lolbigsort2(result, videos, caches)
     print(result)
 
 if __name__ == "__main__":
