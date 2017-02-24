@@ -1,4 +1,5 @@
 import sys
+import operator
 
 class Video(object):
     """docstring for Video."""
@@ -55,16 +56,16 @@ class Request(object):
         endpoint.addRequest(self)
 
 
-def print_infos(nvideos, nendpoints, nrequests, ncache, ncachecap):
-    print(
-"""Video number: %d
-Endpoints number: %d
-Requests number: %d
-Cache servers number: %d
-Cache server capacity: %d""" % (
-    nvideos, nendpoints, nrequests, ncache, ncachecap
-    )
-)
+# def print_infos(nvideos, nendpoints, nrequests, ncache, ncachecap):
+#     print(
+# """Video number: %d
+# Endpoints number: %d
+# Requests number: %d
+# Cache servers number: %d
+# Cache server capacity: %d""" % (
+#     nvideos, nendpoints, nrequests, ncache, ncachecap
+#     )
+# )
 
 
 def lolbigsort(videos, endpoints, caches, requests, ncachecap):
@@ -150,7 +151,7 @@ def main(args):
         nvideos, nendpoints, nrequests, ncache, ncachecap = map(
             int, lines[0].split()
         )
-    print_infos(nvideos, nendpoints, nrequests, ncache, ncachecap)
+    # print_infos(nvideos, nendpoints, nrequests, ncache, ncachecap)
 
     videos = {}
     i = 0
@@ -160,8 +161,8 @@ def main(args):
             videos[i] = Video(i, size)
         i += 1
 
-    print("\nRetrieval")
-    print("Videos number retrieved %d" % (len(videos.values())))
+    # print("\nRetrieval")
+    # print("Videos number retrieved %d" % (len(videos.values())))
 
     endpoints = {}
     caches = {}
@@ -185,8 +186,8 @@ def main(args):
             j += 1
         i += 1
 
-    print("Number of endpoints: %d" % (len(endpoints.values())))
-    print("Number of caches: %d" % (len(caches.values())))
+    # print("Number of endpoints: %d" % (len(endpoints.values())))
+    # print("Number of caches: %d" % (len(caches.values())))
 
     requests = {}
     i = 0
@@ -203,11 +204,33 @@ def main(args):
         index += 1
         i += 1
 
-    print("Number of requests: %d" % len(requests))
+    # print("Number of requests: %d" % len(requests))
 
     result = lolbigsort(videos, endpoints, caches, requests, ncachecap)
+# <<<<<<< Updated upstream
     result = lolbigsort2(result, videos, caches)
-    print(result)
+    # print(result)
+# =======
+
+    print(len(result) - 1)
+    for cache_id, plop in result.items():
+        tmp_cap = ncachecap
+        if cache_id == -1:
+            continue
+        print(cache_id, end=" ")
+        sorted_x = sorted(plop.items(), key=operator.itemgetter(1), reverse=True)
+        # if (cache_id == 1):
+        #     print(sorted_x)
+        for mt in sorted_x:
+            if (tmp_cap - videos[mt[0]].size >= 0):
+                print(mt[0], end=" ")
+                tmp_cap -= videos[mt[0]].size
+            else:
+                break
+        print()
+
+##    print(result)
+# >>>>>>> Stashed changes
 
 if __name__ == "__main__":
     main(sys.argv)
